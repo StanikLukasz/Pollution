@@ -10,7 +10,8 @@
 -author("Lukasz Stanik").
 
 %% API
--export([createMonitor/0,addStation/3,addValue/5,removeValue/4,getOneValue/4,getStationMean/3,getDailyMean/3]).
+-export([createMonitor/0,addStation/3,addValue/5,removeValue/4,getOneValue/4,getStationMean/3,getDailyMean/3,
+  getDailyOverLimit/4]).
 
 %patterns
 %Monitor = { [list of stations], [list of values] }
@@ -56,7 +57,6 @@ addStation({X,Y}, Name, {Stations,Values}) ->
 addStation(_,_,M) ->
   io:format("Incorrect data."),
   M.
-
 
 addValue({X,Y}, Date, Type, Value, {Stations,Values}) ->
   case checkIfStationExists({X,Y},{Stations,Values}) of
@@ -146,3 +146,7 @@ getStationMean(Name, Type, Monitor) ->
 getDailyMean(Day, Type, {_,Values}) ->
   TheseValues = [ VValue || {_, {VDay,_}, VType, VValue} <- Values, {VDay,VType} == {Day,Type}],
   average(TheseValues).
+
+getDailyOverLimit(Day,Type,Limit,{_,Values}) ->
+  sets:size(sets:from_list(
+    [ VC || {VC, {VDay,_}, VType, VValue} <- Values, {VDay,VType} == {Day,Type}, VValue > Limit])).
