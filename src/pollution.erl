@@ -9,6 +9,8 @@
 -module(pollution).
 -author("Lukasz Stanik").
 
+-include_lib("eunit/include/eunit.hrl").
+
 %% API
 -export([createMonitor/0,addStation/3,addValue/5,removeValue/4,getOneValue/4,getStationMean/3,getDailyMean/3,
   getDailyOverLimit/4]).
@@ -46,11 +48,17 @@ createMonitor() ->{[],[]}.
 addStation(Name, {X,Y}, {Stations,Values})
   when is_float(X) and is_float(Y) and (X>=0) and (Y>=0) -> %and length(Name)>0 ->
   case checkIfStationExists({X,Y}, {Stations,Values}) of
-    true -> io:format("There is already station at these coordinates.");
-    false -> case checkIfStationExists(Name, {Stations,Values}) of
-               true -> io:format("There is already station with this name.");
-               false -> {[ {Name,{X,Y}} | Stations ],Values}
-             end
+    true ->
+      io:format("There is already station at these coordinates."),
+      {Stations,Values};
+    false ->
+      case checkIfStationExists(Name, {Stations,Values}) of
+         true ->
+           io:format("There is already station with this name."),
+           {Stations,Values};
+         false ->
+           {[ {Name,{X,Y}} | Stations ],Values}
+      end
   end;
 addStation({X,Y}, Name, {Stations,Values}) ->
   addStation(Name, {X,Y}, {Stations,Values});
@@ -60,16 +68,25 @@ addStation(_,_,M) ->
 
 addValue({X,Y}, Date, Type, Value, {Stations,Values}) ->
   case checkIfStationExists({X,Y},{Stations,Values}) of
-      false -> io:format("There is no station with these coordinates.");
-      true -> case checkIfValueExists({X,Y}, Date, Type, {Stations,Values}) of
-                true -> io:format("This value already exists!");
-                false -> {Stations,[{{X,Y},Date,Type,Value}|Values]}
-              end
+      false ->
+        io:format("There is no station with these coordinates."),
+        {Stations,Values};
+      true ->
+        case checkIfValueExists({X,Y}, Date, Type, {Stations,Values}) of
+          true ->
+            io:format("This value already exists!"),
+            {Stations,Values};
+          false ->
+            {Stations,[{{X,Y},Date,Type,Value}|Values]}
+        end
   end;
 addValue(Name, Date, Type, Value, {Stations,Values}) ->
   case getStationCoor(Name,{Stations,Values}) of
-    false -> io:format("There is no station with this name.");
-    C -> addValue(C,Date,Type,Value,{Stations,Values})
+    false ->
+      io:format("There is no station with this name."),
+      {Stations,Values};
+    C ->
+      addValue(C,Date,Type,Value,{Stations,Values})
   end.
 
 removeValue({X,Y}, Date, Type, {Stations,Values}) ->
@@ -82,8 +99,11 @@ removeValue({X,Y}, Date, Type, {Stations,Values}) ->
   end;
 removeValue(Name, Date, Type, Monitor) ->
   case getStationCoor(Name,Monitor) of
-    false -> io:format("There is no station with this name.");
-    C -> removeValue(C,Date,Type,Monitor)
+    false ->
+      io:format("There is no station with this name."),
+      Monitor;
+    C ->
+      removeValue(C,Date,Type,Monitor)
   end.
 
 getWholeOneValue({X,Y},Date,Type,{Stations,Values}) ->
@@ -150,3 +170,20 @@ getDailyMean(Day, Type, {_,Values}) ->
 getDailyOverLimit(Day,Type,Limit,{_,Values}) ->
   sets:size(sets:from_list(
     [ VC || {VC, {VDay,_}, VType, VValue} <- Values, {VDay,VType} == {Day,Type}, VValue > Limit])).
+
+%tests
+
+createMonitor_test_() ->
+  ?_assertEqual({[],[]},createMonitor()).
+
+addStation_test_() ->
+  ?_assertMatch({ [ {"Slowackiego",{5.67,6.78}} ] ,[]},
+    addStation("Slowackiego",{5.67,6.78},{[],[]}) ),
+  ?_assertMatch({ [ {"Slowackiego",{5.67,6.78}} ] ,[]},
+    addStation({5.67,6.78},"Slowackiego",{[],[]}) ).
+
+addValue_test_() ->
+  ?_assertMatch({_, [{{1.23,2.34},{{_,_,_},{_,_,_}},"PM10",100}]},
+    addValue({1.23,2.34},calendar:local_time(),"PM10",100, { [{"Slowackiego",{1.23,2.34}}] , [] } )),
+  ?_assertMatch({_, [{{1.23,2.34},{{_,_,_},{_,_,_}},"PM10",100}]},
+    addValue("Slowackiego",calendar:local_time(),"PM10",100, { [{"Slowackiego",{1.23,2.34}}] , [] } )).
